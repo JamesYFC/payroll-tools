@@ -2,9 +2,9 @@ import { createApp } from "vue";
 import "./style.css";
 import App from "./App.vue";
 import { OhVueIcon, addIcons } from "oh-vue-icons";
-import { HiArrowRight } from "oh-vue-icons/icons";
+import { BiQuestionCircle } from "oh-vue-icons/icons";
 
-addIcons(HiArrowRight);
+addIcons(BiQuestionCircle);
 
 const app = createApp(App);
 app.component("v-icon", OhVueIcon);

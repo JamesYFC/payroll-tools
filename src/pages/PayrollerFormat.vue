@@ -1,37 +1,68 @@
 <script setup lang="ts">
 import { useClipboard } from "@vueuse/core";
-import { ref, useTemplateRef } from "vue";
+import { onUnmounted, reactive, ref, useTemplateRef } from "vue";
 
 const { copy, copied } = useClipboard({ legacy: true });
-
-const transformText = (text: string) =>
-  text
-    .replace(/\n(\d)/g, "\t$1") // join names to next line
-    .replace(
-      /^(.*?)(?:\t[^\t]+){2}\t([^\t]+)\t([^\t]+)\t([^\t]+)\t([^\t]+).*$/gm,
-      "$1\t$2\t$3\t$4\t$5",
-    ) // remove extra columns
-    .replace(
-      new RegExp(Array.from(names.value.keys()).join("|"), "g"),
-      (match) => names.value.get(match) || match,
-    ); // remap names
 
 const input = ref("");
 const output = ref("");
 const toast = useTemplateRef("toast");
-const names = ref(new Map<string, string>());
-const remapNamesOpen = ref(false);
+const copyButton = useTemplateRef("copyButton");
+const data = reactive({
+  names: new Map<string, string>(),
+  rows: [] as string[][],
+  columns: [] as string[][],
+  columnActive: [true, false, false, true, true, true, true, false],
+});
+const initialTimeMs = 1000;
+const timeLeft = ref(initialTimeMs);
+const timer = ref<ReturnType<typeof setInterval> | null>(null);
 
-const animation = [
+function startCopyTimer() {
+  if (timer.value) return; // already running
+
+  copyButton.value?.animate(timerTransitionAnim, {
+    duration: initialTimeMs,
+    easing: "ease-in-out",
+    fill: "none",
+  });
+
+  timer.value = setInterval(() => {
+    if (timeLeft.value > 0) {
+      timeLeft.value -= 100;
+    } else {
+      clearCopyTimer();
+      setAndCopyOutput();
+    }
+  }, 100);
+}
+
+function clearCopyTimer() {
+  if (timer.value) {
+    clearInterval(timer.value);
+    timer.value = null;
+  }
+}
+
+const panUpDownAnim = [
   { opacity: 0, transform: "translate(-50%, 0px)" },
   { opacity: 1, transform: "translate(-50%, -20px)", offset: 0.025 },
   { opacity: 1, transform: "translate(-50%, -20px)", offset: 0.975 },
   { opacity: 0, transform: "translate(-50%, 0px)" },
 ];
 
-const updateOutput = () => {
-  output.value = transformText(input.value);
-};
+const timerTransitionAnim = [
+  {
+    background:
+      "linear-gradient(var(--color-neutral-300) 0 0) bottom/ 100% 2px no-repeat, var(--color-neutral-900)",
+  },
+  {
+    background:
+      "linear-gradient(var(--color-neutral-300) 0 0) bottom/ 0% 2px no-repeat, var(--color-neutral-900)",
+  },
+];
+
+const tempNames: string[] = [];
 
 const handlePaste = async (event: ClipboardEvent) => {
   event.preventDefault();
@@ -43,51 +74,92 @@ const handlePaste = async (event: ClipboardEvent) => {
   const text = clipboardData.getData("text/plain");
   input.value = text;
   console.log("Pasted text: ", text);
-  updateOutput();
 
-  const detectedNames = input.value
-    .trim()
+  data.columns.length = data.rows.length = tempNames.length = 0; // Clear existing data
+  text
+    .replace(/\n(\d)/g, "\t$1") // join names to next line
     .split("\n")
-    .map((line) => line.split("\t")[0])
-    .filter((name, index) => index % 2 == 0 && name.length > 0);
+    .map((e) => e.trim())
+    // fill name & column data
+    .forEach((row, rowI) => {
+      const cells = row.split("\t").filter((x) => x != "\t");
+      tempNames.push(cells[0]);
 
-  // Check if names map is empty or if the detected names are different from the existing keys
-  if (
-    names.value.size === 0 ||
-    detectedNames.some((name) => !names.value.has(name))
-  ) {
-    names.value.clear(); // Clear existing names map
-    // Populate names map
-    detectedNames.forEach((name) => {
-      names.value.set(name, name);
+      data.rows[rowI] = [...cells];
+      cells.forEach((item, i) => {
+        if (!data.columns[i]) data.columns[i] = [];
+        data.columns[i][rowI] = item;
+      });
+    });
+
+  if (!tempNames.every((name) => data.names.has(name))) {
+    data.names.clear(); // Clear existing names map
+    tempNames.forEach((name) => {
+      data.names.set(name, name);
     });
   }
 
-  await copyOutput();
+  await setAndCopyOutput();
 };
 
-const handleRemapNames = () => {
-  remapNamesOpen.value = !remapNamesOpen.value;
-  if (!remapNamesOpen.value) {
-    // If remapping is closed, re-copy the output
-    copyOutput();
-  }
-};
+async function setAndCopyOutput() {
+  // clear copy timer, if any
+  clearCopyTimer();
 
-async function copyOutput() {
+  // set output based on remapped names and column active states
+  output.value = data.rows
+    .map((row) =>
+      row
+        .filter((item, i) => {
+          if (i === 0) {
+            return true; // always include the first column (name)
+          }
+          // check if the column is active
+          if (data.columnActive[i]) {
+            return item;
+          }
+          return false;
+        })
+        .map((item, i) => {
+          if (i === 0) {
+            return data.names.get(item) || item; // remap name
+          }
+          return item;
+        })
+        .join("\t"),
+    )
+    .join("\n");
+
+  // copy to clipboard
   await copy(output.value);
   if (copied) {
-    const newLocal = animation;
-    toast.value?.animate(newLocal, {
+    toast.value?.animate(panUpDownAnim, {
       duration: 2000,
       easing: "ease-in-out",
       fill: "forwards",
     });
   } else {
-    // Handle copy failure
+    // handle copy failure
     console.error("Failed to copy text to clipboard.");
   }
 }
+
+function onNameChange(name: string, value: string) {
+  if (data.names.has(name)) {
+    data.names.set(name, value);
+  } else {
+    console.error(`Name ${name} not found in names map.`);
+    return;
+  }
+
+  clearCopyTimer();
+  timeLeft.value = initialTimeMs;
+  startCopyTimer();
+}
+
+onUnmounted(() => {
+  clearCopyTimer();
+});
 </script>
 
 <template>
@@ -96,42 +168,53 @@ async function copyOutput() {
       <p class="strong">converted from:</p>
       <pre>{{ input }}</pre>
       <p class="strong">to:</p>
-      <pre>{{ output }}</pre>
-      <p class="toast" ref="toast">Copied to clipboard.</p>
-      <button
-        class="no-stretch mt-4"
-        @click="handleRemapNames"
-        :form="remapNamesOpen ? 'remapNameForm' : undefined"
-        :type="remapNamesOpen ? 'button' : 'submit'"
-      >
-        {{ remapNamesOpen ? "Done" : "Remap Names" }}
-      </button>
-      <form
-        id="remapNameForm"
-        :class="'flex justify-center' + (!remapNamesOpen ? ' invis' : '')"
-        @submit.prevent
-      >
+      <form class="flex gap-x-[2em]" @submit.prevent="setAndCopyOutput">
+        <div class="flex flex-col">
+          <input
+            v-for="[name] of data.names"
+            :key="name"
+            type="text"
+            :placeholder="name"
+            class="field-sizing-content"
+            style="min-width: 10px"
+            @input="
+              onNameChange(name, ($event?.target as HTMLInputElement).value)
+            "
+          />
+        </div>
         <div
-          class="grid grid-cols-[minmax(10px,_3fr)_minmax(1px,2em)_minmax(10px,_3fr)] gap-1"
+          v-for="(col, colI) of data.columns.slice(1)"
+          :key="colI"
+          class="flex flex-col activeable"
+          @click="
+            () => {
+              data.columnActive[colI + 1] = !data.columnActive[colI + 1];
+              setAndCopyOutput();
+            }
+          "
         >
-          <template v-for="[key, value] of names" :key="key">
-            <label :for="key" class="left-label">{{ key }}</label>
-            <v-icon name="hi-arrow-right" class="w-full" />
-            <input
-              type="text"
-              class="border-b px-2 w-min"
-              :id="key"
-              :placeholder="value"
-              @input="
-                (e) => {
-                  names.set(key, (e.target as HTMLInputElement).value);
-                  updateOutput();
-                }
-              "
-            />
+          <template v-for="(item, itemI) of col" :key="itemI">
+            <p
+              class="text-left"
+              :class="{
+                'output-grid-inactive': !data.columnActive[colI + 1],
+              }"
+              @mousedown.prevent
+            >
+              {{ item }}
+            </p>
           </template>
         </div>
       </form>
+      <button
+        ref="copyButton"
+        class="no-stretch copy-button"
+        @click="setAndCopyOutput"
+      >
+        Copy
+      </button>
+      <!-- <v-icon name="bi-question-circle" /> -->
+      <p class="toast" ref="toast">Copied to clipboard.</p>
     </template>
     <template v-else>
       <p>Paste Payroller text to convert.</p>
@@ -151,13 +234,27 @@ form {
   transition: opacity 0.2s ease-in-out;
 }
 
-.left-label {
-  display: inline-flex;
-  align-self: center;
-  justify-self: right;
+.copy-button {
+  background: var(--color-neutral-900);
 }
-.invis {
-  opacity: 0;
+.copy-button:hover {
+  background: var(--color-neutral-700);
+}
+.copy-button:active {
+  background: black;
+}
+.activeable {
+  cursor: pointer;
+}
+.activeable:hover,
+input:hover {
+  text-shadow:
+    -0.5px 0 #fff,
+    0.5px 0 #fff;
+}
+
+.output-grid-inactive {
+  opacity: 0.5;
 }
 .no-stretch {
   align-self: center;
@@ -184,6 +281,6 @@ form {
   height: 100%;
   width: 100%;
   align-items: stretch;
-  gap: 10px;
+  row-gap: 16px;
 }
 </style>
