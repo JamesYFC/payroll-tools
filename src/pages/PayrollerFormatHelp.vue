@@ -3,24 +3,24 @@ import { ref } from "vue";
 const data = [
   {
     label: "Copy your pay slip values.",
-    image: "/payroller-help-1.gif",
+    image: "/payroller-formatter/payroller-help-1.gif",
   },
   {
     label: "Paste into the payroller formatter page.",
-    image: "/payroller-help-2.gif",
+    image: "/payroller-formatter/payroller-help-2.gif",
   },
   {
     label: "Remap names & toggle columns to your liking.",
-    image: "/payroller-help-3.gif",
+    image: "/payroller-formatter/payroller-help-3.gif",
   },
   {
     label: "Paste back into your spreadsheet!",
-    image: "/payroller-help-4.gif",
+    image: "/payroller-formatter/payroller-help-4.gif",
   },
   {
     label:
       "Pasting new data will keep your format settings, so you can quickly go between this page and your spreadsheet!",
-    image: "/payroller-help-5.gif",
+    image: "/payroller-formatter/payroller-help-5.gif",
   },
 ];
 const pageNum = ref(0);
