@@ -42,7 +42,10 @@ const props = defineProps<{
       @click.prevent="emit('close')"
       @mousedown.prevent
     >
-      <div class="bg-neutral-800 w-fit px-10 py-6 mx-10 rounded-xl" @click.stop>
+      <div
+        class="bg-neutral-800 w-fit max-w-[680px] px-10 py-6 mx-10 rounded-xl"
+        @click.stop
+      >
         <h1 class="mb-2">How-to</h1>
         <Transition name="label" mode="out-in">
           <p :key="pageNum" class="w-full text-left">
