@@ -1,5 +1,7 @@
 # Payroller Formatter
 
+Use it [here](https://jamesyfc.github.io/payroller-formatter/).
+
 A simple tool to format payroller data for the manual copy-pasters.
 
 ![Tool usage - copy pasting between payroller, formatter page, and spreadsheet](public/payroller-help-5.gif)
