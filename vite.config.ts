@@ -5,6 +5,7 @@ import vueDevTools from "vite-plugin-vue-devtools";
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: "/payroller-formatter/",
   plugins: [vue(), tailwindcss(), vueDevTools()],
   build: {
     sourcemap: true,

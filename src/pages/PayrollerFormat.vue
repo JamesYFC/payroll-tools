@@ -195,7 +195,7 @@ onUnmounted(() => {
             }
           "
         >
-          <template v-for="(item, itemI) of col" :key="itemI">
+          <template v-for="(item, _itemI) of col" :key="_itemI">
             <p
               class="text-left"
               :class="{
