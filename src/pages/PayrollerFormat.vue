@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useClipboard } from "@vueuse/core";
 import { onUnmounted, reactive, ref, useTemplateRef } from "vue";
+import PayrollerFormatHelp from "./PayrollerFormatHelp.vue";
+import { panUpDownAnim, timerTransitionAnim } from "../animations";
 
 const { copy, copied } = useClipboard({ legacy: true });
 
@@ -17,6 +19,7 @@ const data = reactive({
 const initialTimeMs = 1000;
 const timeLeft = ref(initialTimeMs);
 const timer = ref<ReturnType<typeof setInterval> | null>(null);
+const showHelp = ref(false);
 
 function startCopyTimer() {
   if (timer.value) return; // already running
@@ -43,24 +46,6 @@ function clearCopyTimer() {
     timer.value = null;
   }
 }
-
-const panUpDownAnim = [
-  { opacity: 0, transform: "translate(-50%, 0px)" },
-  { opacity: 1, transform: "translate(-50%, -20px)", offset: 0.025 },
-  { opacity: 1, transform: "translate(-50%, -20px)", offset: 0.975 },
-  { opacity: 0, transform: "translate(-50%, 0px)" },
-];
-
-const timerTransitionAnim = [
-  {
-    background:
-      "linear-gradient(var(--color-neutral-300) 0 0) bottom/ 100% 2px no-repeat, var(--color-neutral-900)",
-  },
-  {
-    background:
-      "linear-gradient(var(--color-neutral-300) 0 0) bottom/ 0% 2px no-repeat, var(--color-neutral-900)",
-  },
-];
 
 const tempNames: string[] = [];
 
@@ -152,6 +137,10 @@ function onNameChange(name: string, value: string) {
     return;
   }
 
+  restartCopyTimer();
+}
+
+function restartCopyTimer() {
   clearCopyTimer();
   timeLeft.value = initialTimeMs;
   startCopyTimer();
@@ -165,10 +154,23 @@ onUnmounted(() => {
 <template>
   <div class="full-container" @paste="handlePaste">
     <template v-if="input">
-      <p class="strong">converted from:</p>
+      <div
+        class="flex justify-center bg-linear-[transparent_calc(50%-1px),var(--color-neutral-200)_50%,transparent_calc(50%+1px)]"
+      >
+        <h2 class="bg-neutral-800 px-4">original</h2>
+      </div>
       <pre>{{ input }}</pre>
-      <p class="strong">to:</p>
-      <form class="flex gap-x-[2em]" @submit.prevent="setAndCopyOutput">
+      <div
+        class="my-3 flex justify-center bg-linear-[transparent_calc(50%-1px),var(--color-neutral-200)_50%,transparent_calc(50%+1px)]"
+      >
+        <v-icon
+          name="fa-arrow-down"
+          scale="1"
+          fill="var(--color-neutral-300)"
+          class="w-10 bg-neutral-800 border-x-2 border-neutral-800"
+        />
+      </div>
+      <form class="flex gap-x-[1em] mb-2" @submit.prevent="setAndCopyOutput">
         <div class="flex flex-col">
           <input
             v-for="[name] of data.names"
@@ -185,11 +187,11 @@ onUnmounted(() => {
         <div
           v-for="(col, colI) of data.columns.slice(1)"
           :key="colI"
-          class="flex flex-col activeable"
+          class="flex flex-col activeable px-1"
           @click="
             () => {
               data.columnActive[colI + 1] = !data.columnActive[colI + 1];
-              setAndCopyOutput();
+              restartCopyTimer();
             }
           "
         >
@@ -213,13 +215,20 @@ onUnmounted(() => {
       >
         Copy
       </button>
-      <!-- <v-icon name="bi-question-circle" /> -->
       <p class="toast" ref="toast">Copied to clipboard.</p>
     </template>
     <template v-else>
       <p>Paste Payroller text to convert.</p>
     </template>
   </div>
+  <v-icon
+    name="bi-question-circle"
+    scale="1.5"
+    class="help-button"
+    @click="showHelp = true"
+    @mousedown.prevent
+  />
+  <PayrollerFormatHelp :show="showHelp" @close="showHelp = false" />
 </template>
 
 <style scoped>
@@ -236,21 +245,41 @@ form {
 
 .copy-button {
   background: var(--color-neutral-900);
+  border: 0;
+  &:hover {
+    background: var(--color-neutral-700);
+    border: 0;
+  }
+  &:active {
+    background: var(--color-neutral-900);
+  }
 }
-.copy-button:hover {
-  background: var(--color-neutral-700);
-}
-.copy-button:active {
-  background: black;
-}
+
 .activeable {
   cursor: pointer;
 }
 .activeable:hover,
-input:hover {
-  text-shadow:
-    -0.5px 0 #fff,
-    0.5px 0 #fff;
+input:hover,
+input:focus {
+  background-color: var(--color-neutral-600);
+}
+input:focus {
+  outline: 0;
+  text-shadow: none;
+}
+
+.help-button {
+  cursor: pointer;
+  position: absolute;
+  right: 0;
+  top: 0;
+  margin: 1em;
+  &:hover {
+    color: var(--color-neutral-700);
+  }
+  &:active {
+    color: var(--color-neutral-900);
+  }
 }
 
 .output-grid-inactive {
