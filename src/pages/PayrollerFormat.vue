@@ -154,6 +154,13 @@ onUnmounted(() => {
 <template>
   <div class="full-container" @paste="handlePaste">
     <template v-if="input">
+      <v-icon
+        name="bi-question-circle"
+        scale="1.5"
+        class="help-button corner"
+        @click="showHelp = true"
+        @mousedown.prevent
+      />
       <div
         class="flex justify-center bg-linear-[transparent_calc(50%-1px),var(--color-neutral-200)_50%,transparent_calc(50%+1px)]"
       >
@@ -219,15 +226,16 @@ onUnmounted(() => {
     </template>
     <template v-else>
       <p>Paste Payroller text to convert.</p>
+      <v-icon
+        name="bi-question-circle"
+        scale="1.5"
+        class="help-button"
+        @click="showHelp = true"
+        @mousedown.prevent
+      />
     </template>
   </div>
-  <v-icon
-    name="bi-question-circle"
-    scale="1.5"
-    class="help-button"
-    @click="showHelp = true"
-    @mousedown.prevent
-  />
+
   <PayrollerFormatHelp :show="showHelp" @close="showHelp = false" />
 </template>
 
@@ -270,16 +278,18 @@ input:focus {
 
 .help-button {
   cursor: pointer;
-  position: absolute;
-  right: 0;
-  top: 0;
-  margin: 1em;
   &:hover {
     color: var(--color-neutral-700);
   }
   &:active {
     color: var(--color-neutral-900);
   }
+}
+.corner {
+  position: absolute;
+  right: 0;
+  top: 0;
+  margin: 1em;
 }
 
 .output-grid-inactive {
